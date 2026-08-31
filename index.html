@@ -1,1366 +1,551 @@
 <!doctype html>
-<html lang="zh-CN" data-theme="light">
+<html lang="zh-CN" data-theme="auto">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Portable Markdown Editor</title>
-  <meta name="description" content="一个零构建、可离线、可直接通过 GitHub Pages 使用的轻量 Markdown 编辑器。">
-
+  <meta name="theme-color" content="#f7f8fb">
+  <meta name="description" content="一个轻量、无框架、可复用的 GitHub README 在线阅读页面。">
+  <title>README 在线指南</title>
   <style>
-    /* ============================================================
-       01. Variables
-    ============================================================ */
     :root {
-      --bg: #f5f6f8;
-      --surface: #ffffff;
-      --surface-soft: #f8f9fb;
-      --text: #20242a;
-      --muted: #6f7782;
-      --border: #dfe3e8;
-      --border-strong: #cfd5dc;
-      --accent: #2f6feb;
+      --bg: #f6f7fb;
+      --surface: rgba(255,255,255,.88);
+      --surface-solid: #fff;
+      --surface-muted: #f4f6fa;
+      --text: #1a2030;
+      --muted: #667085;
+      --faint: #98a2b3;
+      --line: #e4e7ec;
+      --line-strong: #d0d5dd;
+      --accent: #2563eb;
       --accent-soft: #eaf1ff;
-      --danger: #c5392f;
-      --code-bg: #f4f6f8;
-      --shadow: 0 10px 28px rgba(22, 27, 34, 0.06);
-      --header-h: 58px;
-      --tabs-h: 46px;
-      --toolbar-h: 46px;
-      --radius: 12px;
-      --preview-width: 860px;
+      --accent-strong: #1748b5;
+      --success: #0b7a53;
+      --code-bg: #101828;
+      --code-text: #e8eefc;
+      --mark: #fff0a6;
+      --shadow: 0 14px 40px rgba(15,23,42,.08);
+      --shadow-sm: 0 5px 18px rgba(15,23,42,.07);
+      --radius: 18px;
+      --sidebar: 282px;
+      --header: 70px;
+      --content: 860px;
+      --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", Arial, sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
     }
 
-    html[data-theme="dark"] {
-      --bg: #111419;
-      --surface: #171b21;
-      --surface-soft: #1d222a;
-      --text: #e7eaf0;
-      --muted: #9aa3ae;
-      --border: #2b323c;
-      --border-strong: #3a4450;
-      --accent: #6ea8ff;
-      --accent-soft: #1d2e49;
-      --danger: #ff7b72;
-      --code-bg: #202630;
-      --shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+    [data-theme="dark"] {
+      --bg: #0c111d;
+      --surface: rgba(18,25,40,.88);
+      --surface-solid: #121928;
+      --surface-muted: #182132;
+      --text: #eaecf0;
+      --muted: #a7b0c0;
+      --faint: #7a8699;
+      --line: #273244;
+      --line-strong: #3b4658;
+      --accent: #74a4ff;
+      --accent-soft: #172a50;
+      --accent-strong: #a9c5ff;
+      --success: #5dd6a8;
+      --code-bg: #080d17;
+      --code-text: #e6edf7;
+      --mark: #6d5816;
+      --shadow: 0 18px 48px rgba(0,0,0,.28);
+      --shadow-sm: 0 6px 20px rgba(0,0,0,.22);
     }
 
-    /* ============================================================
-       02. Reset / Base
-    ============================================================ */
-    *, *::before, *::after { box-sizing: border-box; }
-    html, body { height: 100%; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; scroll-padding-top: calc(var(--header) + 22px); }
     body {
       margin: 0;
-      overflow: hidden;
-      background: var(--bg);
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 12% -10%, rgba(37,99,235,.10), transparent 34rem),
+        radial-gradient(circle at 92% 8%, rgba(14,165,233,.07), transparent 30rem),
+        var(--bg);
       color: var(--text);
-      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
-        "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+      font-family: var(--font-sans);
+      font-size: 16px;
+      line-height: 1.75;
+      text-rendering: optimizeLegibility;
       -webkit-font-smoothing: antialiased;
     }
 
-    button, textarea { font: inherit; }
+    a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 3px; }
+    a:hover { color: var(--accent-strong); }
+    button, input { font: inherit; }
     button { color: inherit; }
-    button:focus-visible, textarea:focus-visible {
-      outline: 2px solid var(--accent);
-      outline-offset: 2px;
-    }
+    ::selection { background: rgba(37,99,235,.24); }
 
-    /* ============================================================
-       03. App Shell
-    ============================================================ */
-    .app {
-      height: 100dvh;
-      display: grid;
-      grid-template-rows: var(--header-h) var(--toolbar-h) 1fr;
+    .skip-link {
+      position: fixed; top: 8px; left: 8px; z-index: 999;
+      transform: translateY(-150%); padding: 8px 14px;
+      border-radius: 8px; background: var(--surface-solid); color: var(--text);
     }
+    .skip-link:focus { transform: translateY(0); }
+
+    .progress { position: fixed; inset: 0 0 auto; height: 3px; z-index: 100; background: transparent; }
+    .progress span { display: block; width: 0; height: 100%; background: linear-gradient(90deg,#2563eb,#06b6d4); transition: width .08s linear; }
 
     .topbar {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-      padding: 0 18px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      position: relative;
-      z-index: 20;
+      position: sticky; top: 0; z-index: 60; height: var(--header);
+      border-bottom: 1px solid color-mix(in srgb, var(--line) 82%, transparent);
+      background: color-mix(in srgb, var(--bg) 78%, transparent);
+      backdrop-filter: blur(18px) saturate(140%);
     }
-
-    .brand {
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
+    .topbar-inner { width: min(1440px, 100%); height: 100%; margin: auto; padding: 0 28px; display: flex; align-items: center; gap: 18px; }
+    .brand { display: flex; align-items: center; gap: 11px; min-width: 0; color: var(--text); text-decoration: none; }
+    .brand-mark {
+      display: grid; place-items: center; width: 36px; height: 36px; flex: 0 0 auto;
+      border-radius: 11px; background: linear-gradient(145deg,#2563eb,#1646ad); color: #fff;
+      box-shadow: 0 7px 18px rgba(37,99,235,.25);
     }
-
-    .brand strong {
-      font-size: 15px;
-      line-height: 1.2;
-      white-space: nowrap;
-    }
-
-    .brand span {
-      font-size: 11px;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-
-    .topbar-spacer { flex: 1; }
-
-    .save-status {
-      font-size: 12px;
-      color: var(--muted);
-      white-space: nowrap;
-    }
-
-    .top-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .icon-btn, .mode-btn {
-      height: 34px;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      border-radius: 9px;
-      cursor: pointer;
-      transition: background .15s ease, border-color .15s ease, color .15s ease;
-    }
-
+    .brand-title { overflow: hidden; font-weight: 720; letter-spacing: -.02em; text-overflow: ellipsis; white-space: nowrap; }
+    .brand-subtitle { margin-left: 4px; color: var(--faint); font-size: 12px; font-weight: 500; }
+    .top-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
     .icon-btn {
-      min-width: 38px;
-      padding: 0 10px;
+      display: inline-grid; place-items: center; width: 40px; height: 40px; padding: 0;
+      border: 1px solid var(--line); border-radius: 11px; background: var(--surface); cursor: pointer;
+      box-shadow: 0 1px 2px rgba(15,23,42,.02); transition: .18s ease;
+    }
+    .icon-btn:hover { border-color: var(--line-strong); background: var(--surface-solid); transform: translateY(-1px); }
+    .icon-btn svg { width: 19px; height: 19px; }
+    .mobile-menu { display: none; }
+
+    .shell { width: min(1440px, 100%); margin: 0 auto; padding: 28px; display: grid; grid-template-columns: var(--sidebar) minmax(0,1fr); gap: 34px; align-items: start; }
+    .sidebar { position: sticky; top: calc(var(--header) + 28px); height: calc(100vh - var(--header) - 56px); display: flex; flex-direction: column; gap: 14px; }
+    .side-card { min-height: 0; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .search-wrap { position: relative; padding: 12px; }
+    .search-wrap svg { position: absolute; top: 23px; left: 25px; width: 17px; height: 17px; color: var(--faint); pointer-events: none; }
+    .search {
+      width: 100%; height: 42px; padding: 0 36px 0 38px; border: 1px solid var(--line);
+      border-radius: 11px; outline: none; background: var(--surface-solid); color: var(--text); transition: .2s;
+    }
+    .search:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent); }
+    .search-clear { position: absolute; top: 19px; right: 20px; width: 27px; height: 27px; border: 0; background: none; color: var(--faint); cursor: pointer; display: none; }
+    .search-meta { padding: 0 14px 12px; color: var(--faint); font-size: 12px; }
+    .toc-card { flex: 1; display: flex; flex-direction: column; }
+    .side-heading { display: flex; align-items: center; justify-content: space-between; padding: 15px 16px 10px; color: var(--muted); font-size: 12px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+    .toc { min-height: 0; padding: 2px 10px 15px; overflow: auto; scrollbar-width: thin; }
+    .toc a { display: block; margin: 1px 0; padding: 7px 10px; border-radius: 9px; color: var(--muted); font-size: 13px; line-height: 1.4; text-decoration: none; transition: .15s; }
+    .toc a[data-level="3"] { padding-left: 23px; font-size: 12.5px; }
+    .toc a:hover { color: var(--text); background: var(--surface-muted); }
+    .toc a.active { color: var(--accent-strong); background: var(--accent-soft); font-weight: 650; }
+
+    .main { min-width: 0; }
+    .reader { width: min(var(--content),100%); margin: 0 auto 90px; padding: clamp(34px,6vw,72px); border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface-solid); box-shadow: var(--shadow); }
+    .doc-meta { display: flex; align-items: center; gap: 8px; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid var(--line); color: var(--faint); font-size: 13px; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); box-shadow: 0 0 0 4px color-mix(in srgb,var(--success) 13%,transparent); }
+    .doc-meta .spacer { flex: 1; }
+    .doc-meta button { border: 0; padding: 3px 5px; background: none; color: var(--muted); cursor: pointer; }
+
+    .markdown { overflow-wrap: anywhere; }
+    .markdown > :first-child { margin-top: 0 !important; }
+    .markdown h1, .markdown h2, .markdown h3, .markdown h4 { position: relative; color: var(--text); line-height: 1.28; letter-spacing: -.025em; }
+    .markdown h1 { margin: 0 0 24px; font-size: clamp(2rem,5vw,3.15rem); font-weight: 800; }
+    .markdown h2 { margin: 3.4rem 0 1rem; padding-top: .2rem; font-size: clamp(1.45rem,3vw,1.9rem); font-weight: 760; }
+    .markdown h2::after { content: ""; display: block; width: 44px; height: 3px; margin-top: 12px; border-radius: 4px; background: linear-gradient(90deg,var(--accent),#22c1dc); }
+    .markdown h3 { margin: 2.2rem 0 .75rem; font-size: 1.25rem; font-weight: 720; }
+    .markdown h4 { margin: 1.6rem 0 .6rem; font-size: 1.08rem; }
+    .anchor { position: absolute; left: -26px; padding: 0 6px; color: var(--faint); opacity: 0; text-decoration: none; }
+    .markdown h2:hover .anchor, .markdown h3:hover .anchor, .markdown h4:hover .anchor, .anchor:focus { opacity: 1; }
+    .markdown p { margin: .85rem 0; }
+    .markdown strong { color: var(--text); font-weight: 700; }
+    .markdown hr { height: 1px; margin: 2.8rem 0; border: 0; background: var(--line); }
+    .markdown blockquote { margin: 1.4rem 0; padding: 14px 18px; border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--accent-soft); color: var(--muted); }
+    .markdown blockquote p { margin: 0; }
+    .markdown ul, .markdown ol { margin: .8rem 0; padding-left: 1.55rem; }
+    .markdown li { margin: .32rem 0; padding-left: .2rem; }
+    .markdown li::marker { color: var(--accent); font-weight: 650; }
+    .task { list-style: none; margin-left: -1.35rem; }
+    .task input { margin-right: 9px; accent-color: var(--accent); }
+
+    .table-wrap { width: 100%; margin: 1.35rem 0; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+    .markdown table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    .markdown th, .markdown td { padding: 12px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+    .markdown th { background: var(--surface-muted); color: var(--text); font-weight: 700; }
+    .markdown tr:last-child td { border-bottom: 0; }
+    .markdown tr:hover td { background: color-mix(in srgb,var(--surface-muted) 64%,transparent); }
+
+    .markdown code { padding: .15em .42em; border: 1px solid var(--line); border-radius: 6px; background: var(--surface-muted); color: color-mix(in srgb,var(--accent-strong) 82%,var(--text)); font-family: var(--font-mono); font-size: .88em; }
+    .code-block { position: relative; margin: 1.35rem 0; border: 1px solid color-mix(in srgb,var(--line) 60%,#000); border-radius: 13px; overflow: hidden; background: var(--code-bg); box-shadow: 0 8px 24px rgba(0,0,0,.12); }
+    .code-head { display: flex; align-items: center; min-height: 38px; padding: 0 10px 0 15px; border-bottom: 1px solid rgba(255,255,255,.1); color: #98a7bd; font: 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: .06em; }
+    .code-head button { margin-left: auto; padding: 5px 8px; border: 0; border-radius: 6px; background: transparent; color: #b6c1d2; cursor: pointer; font: 12px/1 var(--font-sans); }
+    .code-head button:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .code-block pre { margin: 0; padding: 18px 20px; overflow: auto; color: var(--code-text); font: 13px/1.7 var(--font-mono); tab-size: 2; }
+    .code-block pre code { padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+    .markdown mark { padding: .05em .14em; border-radius: 3px; background: var(--mark); color: inherit; }
+
+    .loading { display: grid; place-items: center; min-height: 420px; color: var(--muted); text-align: center; }
+    .spinner { width: 34px; height: 34px; margin: 0 auto 15px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .error { max-width: 580px; margin: 80px auto; padding: 26px; border: 1px solid #f3b4b4; border-radius: 14px; background: color-mix(in srgb,#fff1f1 75%,var(--surface-solid)); }
+    .error h2 { margin-top: 0; }
+
+    .back-top { position: fixed; right: 24px; bottom: 24px; z-index: 40; opacity: 0; pointer-events: none; transform: translateY(8px); transition: .2s; }
+    .back-top.show { opacity: 1; pointer-events: auto; transform: none; }
+    .overlay { display: none; }
+
+    @media (max-width: 980px) {
+      .topbar-inner { padding: 0 18px; }
+      .brand-subtitle { display: none; }
+      .mobile-menu { display: inline-grid; }
+      .shell { display: block; padding: 18px; }
+      .sidebar { position: fixed; z-index: 80; top: 0; left: 0; width: min(86vw,320px); height: 100dvh; padding: 18px; background: var(--bg); transform: translateX(-105%); transition: transform .25s ease; }
+      .sidebar.open { transform: translateX(0); }
+      .overlay { position: fixed; z-index: 70; inset: 0; display: block; background: rgba(6,12,24,.48); opacity: 0; pointer-events: none; transition: opacity .25s; backdrop-filter: blur(3px); }
+      .overlay.show { opacity: 1; pointer-events: auto; }
+      .reader { padding: clamp(25px,6vw,54px); }
     }
 
-    .icon-btn:hover, .mode-btn:hover {
-      background: var(--surface-soft);
-      border-color: var(--border-strong);
+    @media (max-width: 560px) {
+      :root { --header: 62px; }
+      .shell { padding: 10px; }
+      .reader { border-radius: 14px; padding: 25px 20px 42px; }
+      .brand-title { max-width: 160px; font-size: 14px; }
+      .top-actions { gap: 5px; }
+      .icon-btn { width: 37px; height: 37px; }
+      .print-btn { display: none; }
+      .doc-meta .updated { display: none; }
+      .markdown h1 { font-size: 2rem; }
+      .markdown h2 { margin-top: 2.8rem; }
+      .anchor { display: none; }
+      .back-top { right: 14px; bottom: 14px; }
     }
 
-    /* ============================================================
-       04. Formatting Toolbar
-    ============================================================ */
-    .format-toolbar {
-      height: var(--toolbar-h);
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 12px;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: thin;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      position: relative;
-      z-index: 15;
-    }
-
-    .format-toolbar::-webkit-scrollbar { height: 6px; }
-
-    .tool-btn {
-      height: 32px;
-      flex: 0 0 auto;
-      min-width: 34px;
-      padding: 0 9px;
-      border: 1px solid transparent;
-      border-radius: 8px;
-      background: transparent;
-      color: var(--text);
-      cursor: pointer;
-      font-size: 12px;
-      line-height: 1;
-    }
-
-    .tool-btn:hover {
-      background: var(--surface-soft);
-      border-color: var(--border);
-    }
-
-    .tool-btn:disabled {
-      opacity: .36;
-      cursor: default;
-      background: transparent;
-      border-color: transparent;
-    }
-
-    .tool-separator {
-      width: 1px;
-      height: 20px;
-      flex: 0 0 1px;
-      margin: 0 2px;
-      background: var(--border);
-    }
-
-    .document-name {
-      max-width: 220px;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    /* ============================================================
-       05. Workspace
-    ============================================================ */
-    .workspace {
-      min-height: 0;
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
-      background: var(--surface);
-    }
-
-    .panel {
-      min-width: 0;
-      min-height: 0;
-      display: flex;
-      flex-direction: column;
-      background: var(--surface);
-    }
-
-    .panel-head {
-      height: 42px;
-      flex: 0 0 42px;
-      padding: 0 14px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border);
-      color: var(--muted);
-      font-size: 12px;
-    }
-
-    .editor-wrap, .preview-wrap {
-      min-height: 0;
-      flex: 1;
-    }
-
-    /* Editor 只保留 textarea 自身的滚动条，避免父容器 + textarea 双重滚动。 */
-    .editor-wrap {
-      overflow: hidden;
-    }
-
-    .preview-wrap {
-      overflow: auto;
-    }
-
-    .editor {
-      display: block;
-      width: 100%;
-      height: 100%;
-      min-height: 0;
-      overflow: auto;
-      resize: none;
-      border: 0;
-      outline: 0;
-      padding: 28px 30px 80px;
-      background: var(--surface);
-      color: var(--text);
-      caret-color: var(--accent);
-      font-family: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
-      font-size: 15px;
-      line-height: 1.72;
-      tab-size: 2;
-    }
-
-    .divider { background: var(--border); }
-
-    .preview-wrap {
-      padding: 0 28px 80px;
-      background: var(--surface);
-    }
-
-    .preview {
-      width: min(100%, var(--preview-width));
-      margin: 0 auto;
-      padding: 30px 0 80px;
-    }
-
-    /* ============================================================
-       06. Markdown Content
-    ============================================================ */
-    .markdown-body {
-      font-size: 16px;
-      line-height: 1.75;
-      overflow-wrap: anywhere;
-    }
-
-    .markdown-body > :first-child { margin-top: 0; }
-    .markdown-body > :last-child { margin-bottom: 0; }
-
-    .markdown-body h1,
-    .markdown-body h2,
-    .markdown-body h3,
-    .markdown-body h4,
-    .markdown-body h5,
-    .markdown-body h6 {
-      line-height: 1.3;
-      margin: 1.7em 0 .7em;
-      color: var(--text);
-      font-weight: 700;
-    }
-
-    .markdown-body h1 { font-size: 2em; border-bottom: 1px solid var(--border); padding-bottom: .35em; }
-    .markdown-body h2 { font-size: 1.5em; border-bottom: 1px solid var(--border); padding-bottom: .3em; }
-    .markdown-body h3 { font-size: 1.25em; }
-    .markdown-body h4 { font-size: 1.08em; }
-    .markdown-body h5, .markdown-body h6 { font-size: 1em; }
-
-    .markdown-body p,
-    .markdown-body ul,
-    .markdown-body ol,
-    .markdown-body blockquote,
-    .markdown-body pre,
-    .markdown-body table { margin: 0 0 1.1em; }
-
-    .markdown-body ul,
-    .markdown-body ol { padding-left: 1.6em; }
-
-    .markdown-body li + li { margin-top: .28em; }
-
-    .markdown-body blockquote {
-      margin-left: 0;
-      padding: .15em 1em;
-      border-left: 4px solid var(--border-strong);
-      color: var(--muted);
-      background: var(--surface-soft);
-      border-radius: 0 8px 8px 0;
-    }
-
-    .markdown-body code {
-      padding: .15em .38em;
-      border-radius: 5px;
-      background: var(--code-bg);
-      font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
-      font-size: .9em;
-    }
-
-    .markdown-body pre {
-      overflow: auto;
-      padding: 16px 18px;
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      background: var(--code-bg);
-    }
-
-    .markdown-body pre code {
-      padding: 0;
-      background: transparent;
-      font-size: 13px;
-      line-height: 1.65;
-    }
-
-    .markdown-body a { color: var(--accent); text-decoration: none; }
-    .markdown-body a:hover { text-decoration: underline; }
-
-    .markdown-body img {
-      max-width: 100%;
-      height: auto;
-      border-radius: 9px;
-    }
-
-    .markdown-body hr {
-      height: 1px;
-      margin: 2em 0;
-      border: 0;
-      background: var(--border);
-    }
-
-    .markdown-body table {
-      width: 100%;
-      border-collapse: collapse;
-      display: block;
-      overflow-x: auto;
-    }
-
-    .markdown-body th,
-    .markdown-body td {
-      padding: 9px 12px;
-      border: 1px solid var(--border);
-      text-align: left;
-      white-space: nowrap;
-    }
-
-    .markdown-body th { background: var(--surface-soft); }
-
-    .markdown-body input[type="checkbox"] {
-      margin-right: 6px;
-      vertical-align: -1px;
-    }
-
-    .empty-state, .error-state {
-      margin: 32px auto;
-      padding: 18px 20px;
-      border-radius: 10px;
-      color: var(--muted);
-      background: var(--surface-soft);
-      border: 1px solid var(--border);
-    }
-
-    .error-state { color: var(--danger); }
-
-    /* ============================================================
-       07. Mobile Tabs
-    ============================================================ */
-    .mobile-tabs {
-      display: none;
-      height: var(--tabs-h);
-      padding: 6px;
-      gap: 6px;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-    }
-
-    .mode-btn {
-      flex: 1;
-      border-color: transparent;
-      background: transparent;
-      font-size: 13px;
-    }
-
-    .mode-btn.is-active {
-      background: var(--accent-soft);
-      color: var(--accent);
-      border-color: transparent;
-      font-weight: 600;
-    }
-
-    /* ============================================================
-       08. Drag & Drop
-    ============================================================ */
-    .drop-overlay {
-      position: fixed;
-      inset: 12px;
-      z-index: 100;
-      display: none;
-      place-items: center;
-      border: 2px dashed var(--accent);
-      border-radius: 16px;
-      background: color-mix(in srgb, var(--surface) 92%, transparent);
-      color: var(--accent);
-      font-weight: 700;
-      font-size: 16px;
-      pointer-events: none;
-    }
-
-    .drop-overlay.is-visible { display: grid; }
-
-    /* ============================================================
-       09. Responsive
-    ============================================================ */
-    @media (max-width: 760px) {
-      body { overflow: hidden; }
-
-      .app {
-        grid-template-rows: var(--header-h) var(--tabs-h) var(--toolbar-h) 1fr;
-      }
-
-      .topbar { padding: 0 10px; gap: 6px; }
-      .brand { flex: 0 1 122px; }
-      .brand strong {
-        max-width: 122px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        font-size: 13px;
-      }
-      .brand span { display: none; }
-      .save-status, .document-name { display: none; }
-      .top-actions { gap: 4px; }
-      .icon-btn {
-        height: 32px;
-        min-width: 32px;
-        padding: 0 7px;
-        white-space: nowrap;
-        font-size: 12px;
-      }
-      .mobile-tabs { display: flex; }
-      .format-toolbar { padding-inline: 8px; }
-
-      .workspace {
-        display: block;
-        position: relative;
-        min-height: 0;
-        overflow: hidden;
-      }
-
-      .divider { display: none; }
-
-      .panel {
-        position: absolute;
-        inset: 0;
-        display: none;
-      }
-
-      .panel.is-mobile-active { display: flex; }
-      .panel-head { display: none; }
-
-      .editor { padding: 20px 18px 72px; font-size: 14px; }
-      .preview-wrap { padding: 0 18px 72px; }
-      .preview { padding-top: 22px; }
-      .markdown-body { font-size: 15px; }
+    @media print {
+      :root { --text:#111; --muted:#444; --line:#ddd; --surface-solid:#fff; --surface-muted:#f4f4f4; }
+      body { background: #fff; font-size: 11pt; }
+      .topbar, .sidebar, .progress, .back-top, .doc-meta { display: none !important; }
+      .shell { display: block; width: 100%; padding: 0; }
+      .reader { width: 100%; margin: 0; padding: 0; border: 0; box-shadow: none; }
+      .markdown h2, .markdown h3 { break-after: avoid; }
+      .code-block, .table-wrap, blockquote { break-inside: avoid; }
+      a { color: #111; text-decoration: none; }
+      a[href^="http"]::after { content: " (" attr(href) ")"; font-size: 8pt; color: #666; }
     }
 
     @media (prefers-reduced-motion: reduce) {
-      *, *::before, *::after {
-        scroll-behavior: auto !important;
-        transition: none !important;
-      }
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
     }
   </style>
 </head>
 <body>
-  <div class="app">
-    <header class="topbar">
-      <div class="brand">
-        <strong>Portable Markdown Editor</strong>
-        <span>Phase 2 · Editing Layer · Local First</span>
-      </div>
+  <a class="skip-link" href="#content">跳到正文</a>
+  <div class="progress" aria-hidden="true"><span id="progressBar"></span></div>
 
-      <div class="topbar-spacer"></div>
-      <div class="document-name" id="documentName" title="document.md">document.md</div>
-      <div class="save-status" id="saveStatus">已自动保存</div>
-
+  <header class="topbar">
+    <div class="topbar-inner">
+      <button class="icon-btn mobile-menu" id="menuBtn" aria-label="打开目录" aria-expanded="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <a class="brand" href="#top" aria-label="返回文档顶部">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4M8 12h8M8 16h6"/></svg>
+        </span>
+        <span class="brand-title" id="brandTitle">README 在线指南</span>
+        <span class="brand-subtitle">DOCUMENTATION</span>
+      </a>
       <div class="top-actions">
-        <button class="icon-btn" id="openBtn" type="button" title="打开 Markdown 文件">打开</button>
-        <button class="icon-btn" id="downloadBtn" type="button" title="下载 Markdown 文件（Ctrl/Cmd + S）">下载</button>
-        <button class="icon-btn" id="themeBtn" type="button" aria-label="切换深浅主题" title="切换主题">☾</button>
-        <button class="icon-btn" id="resetBtn" type="button" aria-label="恢复示例内容" title="恢复示例">重置</button>
+        <button class="icon-btn print-btn" id="printBtn" aria-label="打印或导出 PDF" title="打印或导出 PDF">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M7 8V3h10v5M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2M7 14h10v7H7z"/></svg>
+        </button>
+        <button class="icon-btn" id="themeBtn" aria-label="切换颜色主题" title="切换颜色主题">
+          <svg id="themeIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a9 9 0 1 0 9 9c0-.45-.04-.9-.1-1.32A7 7 0 0 1 13.32 3.1C12.9 3.04 12.45 3 12 3Z"/></svg>
+        </button>
       </div>
-    </header>
-
-    <nav class="mobile-tabs" aria-label="手机端编辑模式">
-      <button class="mode-btn is-active" data-mobile-mode="editor" type="button">编辑</button>
-      <button class="mode-btn" data-mobile-mode="preview" type="button">预览</button>
-    </nav>
-
-    <div class="format-toolbar" role="toolbar" aria-label="Markdown 格式工具栏">
-      <button class="tool-btn" id="undoBtn" type="button" title="撤销（Ctrl/Cmd + Z）">撤销</button>
-      <button class="tool-btn" id="redoBtn" type="button" title="重做（Ctrl/Cmd + Y）">重做</button>
-      <span class="tool-separator" aria-hidden="true"></span>
-      <button class="tool-btn" data-command="h1" type="button" title="一级标题">H1</button>
-      <button class="tool-btn" data-command="h2" type="button" title="二级标题">H2</button>
-      <button class="tool-btn" data-command="bold" type="button" title="粗体（Ctrl/Cmd + B）"><strong>B</strong></button>
-      <button class="tool-btn" data-command="italic" type="button" title="斜体（Ctrl/Cmd + I）"><em>I</em></button>
-      <button class="tool-btn" data-command="strike" type="button" title="删除线"><s>S</s></button>
-      <span class="tool-separator" aria-hidden="true"></span>
-      <button class="tool-btn" data-command="quote" type="button" title="引用">引用</button>
-      <button class="tool-btn" data-command="inlineCode" type="button" title="行内代码">代码</button>
-      <button class="tool-btn" data-command="codeBlock" type="button" title="代码块">代码块</button>
-      <span class="tool-separator" aria-hidden="true"></span>
-      <button class="tool-btn" data-command="ul" type="button" title="无序列表">• 列表</button>
-      <button class="tool-btn" data-command="ol" type="button" title="有序列表">1. 编号</button>
-      <button class="tool-btn" data-command="task" type="button" title="任务列表">☑ 任务</button>
-      <span class="tool-separator" aria-hidden="true"></span>
-      <button class="tool-btn" data-command="link" type="button" title="链接（Ctrl/Cmd + K）">链接</button>
-      <button class="tool-btn" data-command="image" type="button" title="图片">图片</button>
-      <button class="tool-btn" data-command="table" type="button" title="插入表格">表格</button>
     </div>
+  </header>
 
-    <main class="workspace">
-      <section class="panel editor-panel is-mobile-active" id="editorPanel" aria-label="Markdown 编辑器">
-        <div class="panel-head">
-          <span>MARKDOWN · <span id="filenameLabel">document.md</span></span>
-          <span id="charCount">0 字符</span>
+  <div class="overlay" id="overlay"></div>
+  <div class="shell" id="top">
+    <aside class="sidebar" id="sidebar" aria-label="文档导航">
+      <div class="side-card">
+        <div class="search-wrap">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.2-3.2"/></svg>
+          <input class="search" id="searchInput" type="search" placeholder="搜索本文…" autocomplete="off" aria-label="搜索文档">
+          <button class="search-clear" id="searchClear" aria-label="清除搜索">×</button>
         </div>
-        <div class="editor-wrap">
-          <textarea id="editor" class="editor" spellcheck="false" aria-label="Markdown 内容"></textarea>
-        </div>
-      </section>
+        <div class="search-meta" id="searchMeta">输入关键词搜索正文</div>
+      </div>
+      <div class="side-card toc-card">
+        <div class="side-heading"><span>本文目录</span><span id="tocCount">—</span></div>
+        <nav class="toc" id="toc"></nav>
+      </div>
+    </aside>
 
-      <div class="divider" aria-hidden="true"></div>
-
-      <section class="panel preview-panel" id="previewPanel" aria-label="Markdown 预览">
-        <div class="panel-head">
-          <span>PREVIEW</span>
-          <span>安全预览</span>
+    <main class="main" id="content" tabindex="-1">
+      <article class="reader">
+        <div class="doc-meta">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span>README.md</span>
+          <span class="spacer"></span>
+          <span class="updated" id="readTime">正在读取…</span>
+          <button id="reloadBtn" title="重新载入 README.md">重新载入</button>
         </div>
-        <div class="preview-wrap">
-          <article id="preview" class="preview markdown-body"></article>
+        <div class="markdown" id="markdown">
+          <div class="loading"><div><div class="spinner"></div><div>正在加载 README.md</div></div></div>
         </div>
-      </section>
+      </article>
     </main>
   </div>
 
-  <input id="fileInput" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
-  <div class="drop-overlay" id="dropOverlay" aria-hidden="true">释放以打开 Markdown 文件</div>
-
-  <!-- Third-party dependency: Marked 4.0.19 (MIT). Kept local for offline use. -->
-  <script src="./vendor/marked/marked.js"></script>
+  <button class="icon-btn back-top" id="backTop" aria-label="返回顶部" title="返回顶部">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m6 15 6-6 6 6"/></svg>
+  </button>
 
   <script>
-    'use strict';
+    (() => {
+      'use strict';
 
-    /* ============================================================
-       01. Config
-    ============================================================ */
-    const CONFIG = Object.freeze({
-      storageKey: 'portable-markdown-editor-state',
-      saveDelay: 450,
-      historyDelay: 320,
-      maxHistory: 100,
-      version: 'phase-2'
-    });
-
-    const DEFAULT_FILENAME = 'document.md';
-
-    const DEFAULT_MARKDOWN = `# Portable Markdown Editor
-
-Phase 2 在第一阶段的稳定核心上加入了真正的编辑能力。
-
-## 本阶段新增
-
-- 常用 Markdown 格式工具栏
-- Undo / Redo 与快捷键
-- 打开本地 \`.md\` / \`.markdown\` / \`.txt\`
-- 直接拖入 Markdown 文件
-- 下载当前内容为 \`.md\`
-- 文件名与正文一起自动保存在浏览器
-
-> 仍然保持 Zero Build、Local First，并继续采用安全预览策略。
-
-### 快捷键
-
-| 操作 | 快捷键 |
-| --- | --- |
-| 粗体 | Ctrl/Cmd + B |
-| 斜体 | Ctrl/Cmd + I |
-| 链接 | Ctrl/Cmd + K |
-| 撤销 | Ctrl/Cmd + Z |
-| 重做 | Ctrl/Cmd + Y |
-| 下载 Markdown | Ctrl/Cmd + S |
-
-### 代码
-
-\`\`\`css
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-}
-\`\`\`
-
-下一阶段再加入 Mermaid、KaTeX 和更完整的导出能力。`;
-
-    /* ============================================================
-       02. State
-    ============================================================ */
-    const state = {
-      content: '',
-      filename: DEFAULT_FILENAME,
-      theme: 'light',
-      mobileMode: 'editor'
-    };
-
-    /* ============================================================
-       03. DOM References
-    ============================================================ */
-    const dom = {
-      editor: document.getElementById('editor'),
-      preview: document.getElementById('preview'),
-      editorPanel: document.getElementById('editorPanel'),
-      previewPanel: document.getElementById('previewPanel'),
-      saveStatus: document.getElementById('saveStatus'),
-      charCount: document.getElementById('charCount'),
-      documentName: document.getElementById('documentName'),
-      filenameLabel: document.getElementById('filenameLabel'),
-      themeBtn: document.getElementById('themeBtn'),
-      resetBtn: document.getElementById('resetBtn'),
-      openBtn: document.getElementById('openBtn'),
-      downloadBtn: document.getElementById('downloadBtn'),
-      undoBtn: document.getElementById('undoBtn'),
-      redoBtn: document.getElementById('redoBtn'),
-      fileInput: document.getElementById('fileInput'),
-      dropOverlay: document.getElementById('dropOverlay'),
-      formatButtons: [...document.querySelectorAll('[data-command]')],
-      mobileModeButtons: [...document.querySelectorAll('[data-mobile-mode]')]
-    };
-
-    /* ============================================================
-       04. Storage
-    ============================================================ */
-    const Storage = (() => {
-      function load() {
-        try {
-          const raw = localStorage.getItem(CONFIG.storageKey);
-          if (!raw) return null;
-          const parsed = JSON.parse(raw);
-          if (!parsed || typeof parsed !== 'object') return null;
-          return parsed;
-        } catch (error) {
-          console.warn('Unable to load editor state:', error);
-          return null;
-        }
-      }
-
-      function save() {
-        try {
-          localStorage.setItem(CONFIG.storageKey, JSON.stringify({
-            version: CONFIG.version,
-            content: state.content,
-            filename: state.filename,
-            theme: state.theme
-          }));
-          return true;
-        } catch (error) {
-          console.warn('Unable to save editor state:', error);
-          return false;
-        }
-      }
-
-      function reset() {
-        try {
-          localStorage.removeItem(CONFIG.storageKey);
-        } catch (error) {
-          console.warn('Unable to reset editor state:', error);
-        }
-      }
-
-      return { load, save, reset };
-    })();
-
-    /* ============================================================
-       05. Safe Markdown Rendering
-    ============================================================ */
-    const Renderer = (() => {
-      const ALLOWED_TAGS = new Set([
-        'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
-        'P', 'BR', 'HR', 'STRONG', 'EM', 'DEL', 'S',
-        'BLOCKQUOTE', 'UL', 'OL', 'LI',
-        'PRE', 'CODE', 'A', 'IMG',
-        'TABLE', 'THEAD', 'TBODY', 'TR', 'TH', 'TD',
-        'INPUT'
-      ]);
-
-      const GLOBAL_ATTRS = new Set(['title']);
-      const TAG_ATTRS = {
-        A: new Set(['href', 'title']),
-        IMG: new Set(['src', 'alt', 'title', 'width', 'height']),
-        INPUT: new Set(['type', 'checked', 'disabled']),
-        TH: new Set(['align']),
-        TD: new Set(['align'])
+      /* 修改这里即可复用到其他 Markdown 文件。 */
+      const CONFIG = {
+        markdownFile: 'README.md',
+        fallbackTitle: 'README 在线指南',
+        rememberTheme: true
       };
 
-      function escapeHtml(value) {
-        return String(value)
-          .replaceAll('&', '&amp;')
-          .replaceAll('<', '&lt;')
-          .replaceAll('>', '&gt;')
-          .replaceAll('"', '&quot;')
-          .replaceAll("'", '&#039;');
+      const $ = (selector, root = document) => root.querySelector(selector);
+      const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
+      const els = {
+        markdown: $('#markdown'), toc: $('#toc'), tocCount: $('#tocCount'),
+        brandTitle: $('#brandTitle'), readTime: $('#readTime'), search: $('#searchInput'),
+        searchMeta: $('#searchMeta'), clear: $('#searchClear'), theme: $('#themeBtn'),
+        themeIcon: $('#themeIcon'), menu: $('#menuBtn'), sidebar: $('#sidebar'), overlay: $('#overlay'),
+        progress: $('#progressBar'), backTop: $('#backTop'), reload: $('#reloadBtn'), print: $('#printBtn')
+      };
+
+      let rawMarkdown = '';
+      let headingObserver;
+      let searchTimer;
+
+      const escapeHtml = value => String(value)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+      const escapeAttr = value => escapeHtml(value).replace(/`/g, '&#096;');
+
+      function slugify(text, used) {
+        let base = text.toLowerCase().replace(/<[^>]*>/g, '').replace(/&[a-z#0-9]+;/gi, '')
+          .trim().replace(/[\s/]+/g, '-').replace(/[^\w\-\u4e00-\u9fff]/g, '').replace(/-+/g, '-');
+        if (!base) base = 'section';
+        let slug = base, i = 2;
+        while (used.has(slug)) slug = `${base}-${i++}`;
+        used.add(slug);
+        return slug;
       }
 
-      function isSafeUrl(value, forImage = false) {
-        const url = String(value || '').trim();
-        if (!url) return true;
-        if (/^(#|\/|\.\/|\.\.\/)/.test(url)) return true;
-        if (/^(https?:|mailto:|tel:)/i.test(url)) return true;
-        return forImage && /^data:image\/(png|gif|jpe?g|webp);base64,/i.test(url);
+      function inline(text) {
+        let value = escapeHtml(text);
+        const inlineCode = [];
+        value = value.replace(/`([^`]+)`/g, (_, code) => `\u0000I${inlineCode.push(code) - 1}\u0000`);
+        value = value.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+|[^\s)]+)(?:\s+&quot;([^&]*)&quot;)?\)/g,
+          (_, alt, url, title) => `<img src="${escapeAttr(url)}" alt="${alt}" loading="lazy"${title ? ` title="${title}"` : ''}>`);
+        value = value.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|[^\s)]+)(?:\s+&quot;([^&]*)&quot;)?\)/g,
+          (_, label, url, title) => `<a href="${escapeAttr(url)}"${/^https?:/.test(url) ? ' target="_blank" rel="noopener noreferrer"' : ''}${title ? ` title="${title}"` : ''}>${label}</a>`);
+        value = value.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/__([^_]+)__/g, '<strong>$1</strong>');
+        value = value.replace(/~~([^~]+)~~/g, '<del>$1</del>');
+        value = value.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>').replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
+        value = value.replace(/\u0000I(\d+)\u0000/g, (_, n) => `<code>${inlineCode[Number(n)]}</code>`);
+        return value;
       }
 
-      function sanitizeHtml(html) {
-        const template = document.createElement('template');
-        template.innerHTML = html;
+      function splitTableRow(line) {
+        return line.trim().replace(/^\||\|$/g, '').split(/(?<!\\)\|/).map(cell => cell.trim().replace(/\\\|/g, '|'));
+      }
 
-        const walker = document.createTreeWalker(
-          template.content,
-          NodeFilter.SHOW_ELEMENT,
-          null
-        );
+      function renderMarkdown(source) {
+        const lines = source.replace(/\r\n?/g, '\n').split('\n');
+        const out = [], used = new Set();
+        let i = 0, paragraph = [], list = null;
 
-        const nodes = [];
-        while (walker.nextNode()) nodes.push(walker.currentNode);
+        const flushParagraph = () => {
+          if (paragraph.length) {
+            out.push(`<p>${inline(paragraph.join(' ').trim())}</p>`);
+            paragraph = [];
+          }
+        };
+        const closeList = () => {
+          if (list) { out.push(`</${list}>`); list = null; }
+        };
+        const flush = () => { flushParagraph(); closeList(); };
 
-        for (const node of nodes) {
-          if (!ALLOWED_TAGS.has(node.tagName)) {
-            node.replaceWith(document.createTextNode(node.textContent || ''));
+        while (i < lines.length) {
+          const line = lines[i];
+
+          const fence = line.match(/^\s*```\s*([^\s`]*)\s*$/);
+          if (fence) {
+            flush();
+            const lang = fence[1] || 'text', code = [];
+            i++;
+            while (i < lines.length && !/^\s*```\s*$/.test(lines[i])) code.push(lines[i++]);
+            out.push(`<div class="code-block"><div class="code-head"><span>${escapeHtml(lang)}</span><button type="button" class="copy-code">复制</button></div><pre><code>${escapeHtml(code.join('\n'))}</code></pre></div>`);
+            i++; continue;
+          }
+
+          const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*$/);
+          if (heading) {
+            flush();
+            const level = heading[1].length, text = heading[2], id = slugify(text, used);
+            out.push(`<h${level} id="${id}"><a class="anchor" href="#${id}" aria-label="链接到此标题">#</a>${inline(text)}</h${level}>`);
+            i++; continue;
+          }
+
+          if (/^\s*(---+|___+|\*\*\*+)\s*$/.test(line)) { flush(); out.push('<hr>'); i++; continue; }
+
+          if (/^>\s?/.test(line)) {
+            flush(); const quote = [];
+            while (i < lines.length && /^>\s?/.test(lines[i])) quote.push(lines[i++].replace(/^>\s?/, ''));
+            out.push(`<blockquote><p>${inline(quote.join(' '))}</p></blockquote>`); continue;
+          }
+
+          if (i + 1 < lines.length && line.includes('|') && /^\s*\|?\s*:?-{3,}/.test(lines[i + 1])) {
+            flush();
+            const headers = splitTableRow(line); i += 2; const rows = [];
+            while (i < lines.length && lines[i].includes('|') && lines[i].trim()) rows.push(splitTableRow(lines[i++]));
+            out.push('<div class="table-wrap"><table><thead><tr>' + headers.map(c => `<th>${inline(c)}</th>`).join('') + '</tr></thead><tbody>' +
+              rows.map(row => '<tr>' + headers.map((_, n) => `<td>${inline(row[n] || '')}</td>`).join('') + '</tr>').join('') + '</tbody></table></div>');
             continue;
           }
 
-          for (const attr of [...node.attributes]) {
-            const name = attr.name.toLowerCase();
-            const allowedForTag = TAG_ATTRS[node.tagName];
-            const isAllowed = GLOBAL_ATTRS.has(name) || (allowedForTag && allowedForTag.has(name));
-
-            if (!isAllowed || name.startsWith('on') || name === 'style') {
-              node.removeAttribute(attr.name);
-              continue;
-            }
-
-            if (node.tagName === 'A' && name === 'href' && !isSafeUrl(attr.value, false)) {
-              node.removeAttribute('href');
-            }
-
-            if (node.tagName === 'IMG' && name === 'src' && !isSafeUrl(attr.value, true)) {
-              node.removeAttribute('src');
-            }
+          const item = line.match(/^\s*([-+*]|\d+[.)])\s+(.+)$/);
+          if (item) {
+            flushParagraph();
+            const type = /^\d/.test(item[1]) ? 'ol' : 'ul';
+            if (list !== type) { closeList(); out.push(`<${type}>`); list = type; }
+            let content = item[2], taskClass = '';
+            const task = content.match(/^\[([ xX])\]\s+(.+)/);
+            if (task) { taskClass = ' class="task"'; content = `<input type="checkbox" disabled${task[1].toLowerCase() === 'x' ? ' checked' : ''}>${inline(task[2])}`; }
+            else content = inline(content);
+            out.push(`<li${taskClass}>${content}</li>`); i++; continue;
           }
 
-          if (node.tagName === 'A' && node.hasAttribute('href')) {
-            node.setAttribute('target', '_blank');
-            node.setAttribute('rel', 'noopener noreferrer');
-          }
-
-          if (node.tagName === 'IMG') node.setAttribute('loading', 'lazy');
-
-          if (node.tagName === 'INPUT') {
-            const type = (node.getAttribute('type') || '').toLowerCase();
-            if (type !== 'checkbox') {
-              node.replaceWith(document.createTextNode(''));
-              continue;
-            }
-            node.setAttribute('disabled', '');
-          }
+          if (!line.trim()) { flush(); i++; continue; }
+          closeList(); paragraph.push(line.trim()); i++;
         }
-
-        return template.innerHTML;
+        flush();
+        return out.join('\n');
       }
 
-      function createMarkedRenderer() {
-        if (!window.marked || !window.marked.Renderer) return null;
-        const renderer = new window.marked.Renderer();
-        renderer.html = (html) => escapeHtml(html);
-        return renderer;
+      function enhanceDocument() {
+        $$('.table-wrap table', els.markdown).forEach(table => table.setAttribute('role', 'table'));
+        $$('.copy-code', els.markdown).forEach(button => button.addEventListener('click', async () => {
+          const code = button.closest('.code-block').querySelector('code').textContent;
+          try {
+            await navigator.clipboard.writeText(code);
+            button.textContent = '已复制';
+          } catch (_) {
+            const area = document.createElement('textarea'); area.value = code; document.body.append(area); area.select(); document.execCommand('copy'); area.remove(); button.textContent = '已复制';
+          }
+          setTimeout(() => button.textContent = '复制', 1400);
+        }));
+        $$('img', els.markdown).forEach(img => img.addEventListener('error', () => img.hidden = true));
       }
 
-      function render(markdown) {
-        if (!window.marked || typeof window.marked.parse !== 'function') {
-          dom.preview.innerHTML = '<div class="error-state">Marked 未能加载。请确认 vendor/marked/marked.js 文件存在。</div>';
-          return;
-        }
+      function buildToc() {
+        const headings = $$('h2, h3', els.markdown);
+        els.toc.innerHTML = headings.map(h => `<a href="#${h.id}" data-level="${h.tagName.slice(1)}">${h.textContent.replace(/^#/, '').trim()}</a>`).join('');
+        els.tocCount.textContent = headings.length;
+        $$('a', els.toc).forEach(a => a.addEventListener('click', closeMenu));
 
+        if (headingObserver) headingObserver.disconnect();
+        headingObserver = new IntersectionObserver(entries => {
+          const visible = entries.filter(e => e.isIntersecting).sort((a,b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+          if (!visible) return;
+          $$('a', els.toc).forEach(a => a.classList.toggle('active', a.hash === `#${visible.target.id}`));
+        }, { rootMargin: '-15% 0px -72% 0px', threshold: 0 });
+        headings.forEach(h => headingObserver.observe(h));
+      }
+
+      function updateTitle() {
+        const h1 = $('h1', els.markdown);
+        const title = h1 ? h1.textContent.trim() : CONFIG.fallbackTitle;
+        document.title = title;
+        els.brandTitle.textContent = title;
+        const words = rawMarkdown.replace(/```[\s\S]*?```/g, '').replace(/[#>*_`|\-]/g, ' ').trim().length;
+        els.readTime.textContent = `约 ${Math.max(1, Math.ceil(words / 450))} 分钟阅读`;
+      }
+
+      async function loadMarkdown() {
+        els.markdown.innerHTML = '<div class="loading"><div><div class="spinner"></div><div>正在加载 README.md</div></div></div>';
+        els.toc.innerHTML = ''; els.tocCount.textContent = '—';
         try {
-          const renderer = createMarkedRenderer();
-          const html = window.marked.parse(markdown || '', {
-            gfm: true,
-            breaks: false,
-            renderer
-          });
-
-          const safeHtml = sanitizeHtml(html);
-          dom.preview.innerHTML = safeHtml || '<div class="empty-state">开始输入 Markdown，预览会显示在这里。</div>';
+          const response = await fetch(`${CONFIG.markdownFile}?v=${Date.now()}`, { cache: 'no-store' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          rawMarkdown = await response.text();
+          if (!rawMarkdown.trim()) throw new Error('README.md 内容为空');
+          els.markdown.innerHTML = renderMarkdown(rawMarkdown);
+          enhanceDocument(); buildToc(); updateTitle();
+          els.searchMeta.textContent = '输入关键词搜索正文';
         } catch (error) {
-          console.error(error);
-          dom.preview.innerHTML = '<div class="error-state">Markdown 渲染失败，请检查输入内容。</div>';
+          els.markdown.innerHTML = `<div class="error"><h2>无法载入 README.md</h2><p>请确认 <code>index.html</code> 与 <code>${escapeHtml(CONFIG.markdownFile)}</code> 位于同一目录，并通过 GitHub Pages 或本地 Web 服务器访问。</p><p><strong>本地预览：</strong></p><div class="code-block"><pre><code>python3 -m http.server 8080</code></pre></div><p>然后打开 <code>http://localhost:8080</code>。</p><p><small>${escapeHtml(error.message)}</small></p></div>`;
+          els.readTime.textContent = '载入失败';
         }
       }
 
-      return { render };
+      function searchDocument(query) {
+        const q = query.trim();
+        els.clear.style.display = q ? 'block' : 'none';
+        if (!q) {
+          els.markdown.innerHTML = renderMarkdown(rawMarkdown); enhanceDocument(); buildToc(); updateTitle();
+          els.searchMeta.textContent = '输入关键词搜索正文'; return;
+        }
+        els.markdown.innerHTML = renderMarkdown(rawMarkdown); enhanceDocument(); buildToc();
+        const walker = document.createTreeWalker(els.markdown, NodeFilter.SHOW_TEXT, {
+          acceptNode(node) { return node.parentElement.closest('code, script, style, .anchor') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT; }
+        });
+        const nodes = []; while (walker.nextNode()) nodes.push(walker.currentNode);
+        let count = 0; const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const regex = new RegExp(escaped, 'gi');
+        nodes.forEach(node => {
+          const text = node.nodeValue; if (!regex.test(text)) return; regex.lastIndex = 0;
+          const fragment = document.createDocumentFragment(); let last = 0;
+          text.replace(regex, (match, offset) => { fragment.append(text.slice(last, offset)); const mark = document.createElement('mark'); mark.textContent = match; fragment.append(mark); last = offset + match.length; count++; });
+          fragment.append(text.slice(last)); node.replaceWith(fragment);
+        });
+        els.searchMeta.textContent = count ? `找到 ${count} 处匹配` : '没有找到匹配内容';
+        const first = $('mark', els.markdown); if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+
+      function applyTheme(theme) {
+        const actual = theme === 'auto' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
+        document.documentElement.dataset.theme = actual;
+        $('meta[name="theme-color"]').content = actual === 'dark' ? '#0c111d' : '#f7f8fb';
+        els.themeIcon.innerHTML = actual === 'dark'
+          ? '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"/>'
+          : '<path d="M12 3a9 9 0 1 0 9 9c0-.45-.04-.9-.1-1.32A7 7 0 0 1 13.32 3.1C12.9 3.04 12.45 3 12 3Z"/>';
+      }
+
+      function toggleTheme() {
+        const next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+        applyTheme(next); if (CONFIG.rememberTheme) localStorage.setItem('readme-theme', next);
+      }
+
+      function openMenu() { els.sidebar.classList.add('open'); els.overlay.classList.add('show'); els.menu.setAttribute('aria-expanded', 'true'); setTimeout(() => els.search.focus(), 260); }
+      function closeMenu() { els.sidebar.classList.remove('open'); els.overlay.classList.remove('show'); els.menu.setAttribute('aria-expanded', 'false'); }
+
+      function onScroll() {
+        const max = document.documentElement.scrollHeight - innerHeight;
+        els.progress.style.width = `${max > 0 ? Math.min(100, scrollY / max * 100) : 0}%`;
+        els.backTop.classList.toggle('show', scrollY > 600);
+      }
+
+      els.search.addEventListener('input', e => { clearTimeout(searchTimer); searchTimer = setTimeout(() => searchDocument(e.target.value), 180); });
+      els.clear.addEventListener('click', () => { els.search.value = ''; searchDocument(''); els.search.focus(); });
+      els.theme.addEventListener('click', toggleTheme);
+      els.menu.addEventListener('click', () => els.sidebar.classList.contains('open') ? closeMenu() : openMenu());
+      els.overlay.addEventListener('click', closeMenu);
+      els.backTop.addEventListener('click', () => scrollTo({ top: 0, behavior: 'smooth' }));
+      els.reload.addEventListener('click', loadMarkdown);
+      els.print.addEventListener('click', () => print());
+      addEventListener('scroll', onScroll, { passive: true });
+      addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); els.search.focus(); if (innerWidth <= 980) openMenu(); } });
+      matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!localStorage.getItem('readme-theme')) applyTheme('auto'); });
+
+      applyTheme(CONFIG.rememberTheme ? (localStorage.getItem('readme-theme') || 'auto') : 'auto');
+      onScroll(); loadMarkdown();
     })();
-
-    /* ============================================================
-       06. Theme
-    ============================================================ */
-    const Theme = (() => {
-      function apply(theme) {
-        const normalized = theme === 'dark' ? 'dark' : 'light';
-        state.theme = normalized;
-        document.documentElement.dataset.theme = normalized;
-        dom.themeBtn.textContent = normalized === 'dark' ? '☀' : '☾';
-        dom.themeBtn.title = normalized === 'dark' ? '切换到浅色' : '切换到深色';
-      }
-
-      function toggle() {
-        apply(state.theme === 'dark' ? 'light' : 'dark');
-        Storage.save();
-      }
-
-      return { apply, toggle };
-    })();
-
-    /* ============================================================
-       07. Mobile Layout
-    ============================================================ */
-    const Layout = (() => {
-      function setMobileMode(mode) {
-        state.mobileMode = mode === 'preview' ? 'preview' : 'editor';
-        dom.editorPanel.classList.toggle('is-mobile-active', state.mobileMode === 'editor');
-        dom.previewPanel.classList.toggle('is-mobile-active', state.mobileMode === 'preview');
-
-        dom.mobileModeButtons.forEach((button) => {
-          button.classList.toggle('is-active', button.dataset.mobileMode === state.mobileMode);
-        });
-      }
-
-      return { setMobileMode };
-    })();
-
-    /* ============================================================
-       08. History
-    ============================================================ */
-    const History = (() => {
-      let stack = [];
-      let index = -1;
-      let timer = 0;
-      let applying = false;
-
-      function snapshot() {
-        return {
-          content: dom.editor.value,
-          start: dom.editor.selectionStart,
-          end: dom.editor.selectionEnd
-        };
-      }
-
-      function sameContent(a, b) {
-        return Boolean(a && b && a.content === b.content);
-      }
-
-      function updateButtons() {
-        dom.undoBtn.disabled = index <= 0 && (!stack[index] || stack[index].content === dom.editor.value);
-        dom.redoBtn.disabled = index < 0 || index >= stack.length - 1;
-      }
-
-      function pushCurrent() {
-        if (applying) return;
-        window.clearTimeout(timer);
-
-        const next = snapshot();
-        const current = stack[index];
-        if (sameContent(current, next)) {
-          if (current) {
-            current.start = next.start;
-            current.end = next.end;
-          }
-          updateButtons();
-          return;
-        }
-
-        stack = stack.slice(0, index + 1);
-        stack.push(next);
-        if (stack.length > CONFIG.maxHistory) stack.shift();
-        index = stack.length - 1;
-        updateButtons();
-      }
-
-      function schedule() {
-        if (applying) return;
-        window.clearTimeout(timer);
-        timer = window.setTimeout(pushCurrent, CONFIG.historyDelay);
-        updateButtons();
-      }
-
-      function reset() {
-        window.clearTimeout(timer);
-        stack = [snapshot()];
-        index = 0;
-        updateButtons();
-      }
-
-      function applySnapshot(item) {
-        if (!item) return;
-        applying = true;
-        Editor.setContent(item.content, {
-          immediate: false,
-          resetHistory: false,
-          selectionStart: item.start,
-          selectionEnd: item.end
-        });
-        applying = false;
-        dom.editor.focus();
-        updateButtons();
-      }
-
-      function undo() {
-        window.clearTimeout(timer);
-        if (!sameContent(stack[index], snapshot())) pushCurrent();
-        if (index <= 0) {
-          updateButtons();
-          return;
-        }
-        index -= 1;
-        applySnapshot(stack[index]);
-      }
-
-      function redo() {
-        window.clearTimeout(timer);
-        if (!sameContent(stack[index], snapshot())) pushCurrent();
-        if (index >= stack.length - 1) {
-          updateButtons();
-          return;
-        }
-        index += 1;
-        applySnapshot(stack[index]);
-      }
-
-      return { schedule, reset, pushCurrent, undo, redo, updateButtons };
-    })();
-
-    /* ============================================================
-       09. Editor / Autosave / Formatting
-    ============================================================ */
-    const Editor = (() => {
-      let saveTimer = 0;
-
-      function updateStatus(text) {
-        dom.saveStatus.textContent = text;
-      }
-
-      function updateCount() {
-        dom.charCount.textContent = `${state.content.length} 字符`;
-      }
-
-      function updateFilename() {
-        dom.documentName.textContent = state.filename;
-        dom.documentName.title = state.filename;
-        dom.filenameLabel.textContent = state.filename;
-      }
-
-      function commitContent(content, immediate = false) {
-        state.content = content;
-        updateCount();
-        Renderer.render(content);
-
-        window.clearTimeout(saveTimer);
-        if (immediate) {
-          Storage.save();
-          updateStatus('已自动保存');
-          return;
-        }
-
-        updateStatus('保存中…');
-        saveTimer = window.setTimeout(() => {
-          const ok = Storage.save();
-          updateStatus(ok ? '已自动保存' : '保存失败');
-        }, CONFIG.saveDelay);
-      }
-
-      function setContent(content, options = {}) {
-        const {
-          immediate = true,
-          resetHistory = false,
-          selectionStart = null,
-          selectionEnd = null
-        } = options;
-
-        dom.editor.value = content;
-        commitContent(content, immediate);
-
-        if (Number.isInteger(selectionStart)) {
-          const end = Number.isInteger(selectionEnd) ? selectionEnd : selectionStart;
-          dom.editor.setSelectionRange(selectionStart, end);
-        }
-
-        if (resetHistory) History.reset();
-      }
-
-      function setFilename(filename) {
-        const clean = String(filename || DEFAULT_FILENAME).trim() || DEFAULT_FILENAME;
-        state.filename = clean;
-        updateFilename();
-      }
-
-      function applyValue(nextValue, start, end) {
-        History.pushCurrent();
-        dom.editor.value = nextValue;
-        dom.editor.setSelectionRange(start, end);
-        commitContent(nextValue, false);
-        History.pushCurrent();
-        dom.editor.focus();
-      }
-
-      function wrapSelection(before, after, placeholder) {
-        const start = dom.editor.selectionStart;
-        const end = dom.editor.selectionEnd;
-        const selected = dom.editor.value.slice(start, end);
-        const body = selected || placeholder;
-        const replacement = `${before}${body}${after}`;
-        const next = dom.editor.value.slice(0, start) + replacement + dom.editor.value.slice(end);
-
-        if (selected) {
-          applyValue(next, start + before.length, start + before.length + selected.length);
-        } else {
-          applyValue(next, start + before.length, start + before.length + placeholder.length);
-        }
-      }
-
-      function transformSelectedLines(transformer) {
-        const value = dom.editor.value;
-        const start = dom.editor.selectionStart;
-        const end = dom.editor.selectionEnd;
-        const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
-        const afterEnd = value.indexOf('\n', end);
-        const lineEnd = afterEnd === -1 ? value.length : afterEnd;
-        const block = value.slice(lineStart, lineEnd);
-        const transformed = transformer(block.split('\n')).join('\n');
-        const next = value.slice(0, lineStart) + transformed + value.slice(lineEnd);
-        applyValue(next, lineStart, lineStart + transformed.length);
-      }
-
-      function insertBlock(text, cursorStartOffset = 0, cursorEndOffset = cursorStartOffset) {
-        const start = dom.editor.selectionStart;
-        const end = dom.editor.selectionEnd;
-        const value = dom.editor.value;
-        const needsBefore = start > 0 && value[start - 1] !== '\n';
-        const needsAfter = end < value.length && value[end] !== '\n';
-        const prefix = needsBefore ? '\n\n' : '';
-        const suffix = needsAfter ? '\n\n' : '';
-        const replacement = prefix + text + suffix;
-        const next = value.slice(0, start) + replacement + value.slice(end);
-        const base = start + prefix.length;
-        applyValue(next, base + cursorStartOffset, base + cursorEndOffset);
-      }
-
-      function command(name) {
-        switch (name) {
-          case 'h1':
-            transformSelectedLines((lines) => lines.map((line) => `# ${line.replace(/^#{1,6}\s+/, '')}`));
-            break;
-          case 'h2':
-            transformSelectedLines((lines) => lines.map((line) => `## ${line.replace(/^#{1,6}\s+/, '')}`));
-            break;
-          case 'bold': wrapSelection('**', '**', '粗体文本'); break;
-          case 'italic': wrapSelection('*', '*', '斜体文本'); break;
-          case 'strike': wrapSelection('~~', '~~', '删除线文本'); break;
-          case 'quote':
-            transformSelectedLines((lines) => lines.map((line) => `> ${line.replace(/^>\s?/, '')}`));
-            break;
-          case 'inlineCode': wrapSelection('`', '`', 'code'); break;
-          case 'codeBlock': {
-            const selected = dom.editor.value.slice(dom.editor.selectionStart, dom.editor.selectionEnd) || '在这里输入代码';
-            const text = `\`\`\`\n${selected}\n\`\`\``;
-            const offset = 4;
-            insertBlock(text, offset, offset + selected.length);
-            break;
-          }
-          case 'ul':
-            transformSelectedLines((lines) => lines.map((line) => `- ${line.replace(/^[-*+]\s+/, '')}`));
-            break;
-          case 'ol':
-            transformSelectedLines((lines) => lines.map((line, i) => `${i + 1}. ${line.replace(/^\d+[.)]\s+/, '')}`));
-            break;
-          case 'task':
-            transformSelectedLines((lines) => lines.map((line) => `- [ ] ${line.replace(/^[-*+]\s+(?:\[[ xX]\]\s+)?/, '')}`));
-            break;
-          case 'link': {
-            const start = dom.editor.selectionStart;
-            const end = dom.editor.selectionEnd;
-            const selected = dom.editor.value.slice(start, end) || '链接文字';
-            const replacement = `[${selected}](https://example.com)`;
-            const next = dom.editor.value.slice(0, start) + replacement + dom.editor.value.slice(end);
-            const urlStart = start + selected.length + 3;
-            applyValue(next, urlStart, urlStart + 'https://example.com'.length);
-            break;
-          }
-          case 'image': {
-            const text = '![图片描述](https://example.com/image.jpg)';
-            insertBlock(text, 2, 6);
-            break;
-          }
-          case 'table': {
-            const text = '| 列 1 | 列 2 | 列 3 |\n| --- | --- | --- |\n| 内容 | 内容 | 内容 |\n| 内容 | 内容 | 内容 |';
-            insertBlock(text, 2, 5);
-            break;
-          }
-        }
-      }
-
-      function bindShortcuts(event) {
-        const mod = event.ctrlKey || event.metaKey;
-        if (!mod) return;
-        const key = event.key.toLowerCase();
-
-        if (key === 'z' && !event.shiftKey) {
-          event.preventDefault();
-          History.undo();
-        } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
-          event.preventDefault();
-          History.redo();
-        } else if (key === 'b') {
-          event.preventDefault();
-          command('bold');
-        } else if (key === 'i') {
-          event.preventDefault();
-          command('italic');
-        } else if (key === 'k') {
-          event.preventDefault();
-          command('link');
-        } else if (key === 's') {
-          event.preventDefault();
-          Files.download();
-        }
-      }
-
-      function bind() {
-        dom.editor.addEventListener('input', () => {
-          commitContent(dom.editor.value, false);
-          History.schedule();
-        });
-
-        dom.editor.addEventListener('keydown', (event) => {
-          bindShortcuts(event);
-          if (event.defaultPrevented) return;
-
-          if (event.key === 'Tab') {
-            event.preventDefault();
-            const start = dom.editor.selectionStart;
-            const end = dom.editor.selectionEnd;
-            History.pushCurrent();
-            dom.editor.setRangeText('  ', start, end, 'end');
-            commitContent(dom.editor.value, false);
-            History.pushCurrent();
-          }
-        });
-
-        dom.formatButtons.forEach((button) => {
-          button.addEventListener('click', () => command(button.dataset.command));
-        });
-      }
-
-      return { bind, setContent, setFilename, updateFilename, command };
-    })();
-
-    /* ============================================================
-       10. File Open / Drag / Download
-    ============================================================ */
-    const Files = (() => {
-      let dragDepth = 0;
-
-      function normalizeFilename(name) {
-        const value = String(name || DEFAULT_FILENAME).trim() || DEFAULT_FILENAME;
-        return /\.(md|markdown|txt)$/i.test(value) ? value : `${value}.md`;
-      }
-
-      function isTextFile(file) {
-        if (!file) return false;
-        if (/\.(md|markdown|txt)$/i.test(file.name || '')) return true;
-        return ['text/plain', 'text/markdown', 'text/x-markdown'].includes(file.type);
-      }
-
-      function loadFile(file) {
-        if (!isTextFile(file)) {
-          window.alert('请选择 .md、.markdown 或 .txt 文本文件。');
-          return;
-        }
-
-        const reader = new FileReader();
-        reader.onload = () => {
-          const content = typeof reader.result === 'string' ? reader.result : '';
-          Editor.setFilename(file.name || DEFAULT_FILENAME);
-          Editor.setContent(content, { immediate: true, resetHistory: true });
-          Layout.setMobileMode('editor');
-          dom.editor.focus();
-        };
-        reader.onerror = () => window.alert('文件读取失败，请重新尝试。');
-        reader.readAsText(file, 'utf-8');
-      }
-
-      function openPicker() {
-        dom.fileInput.value = '';
-        dom.fileInput.click();
-      }
-
-      function download() {
-        const filename = normalizeFilename(state.filename);
-        const blob = new Blob([state.content], { type: 'text/markdown;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const anchor = document.createElement('a');
-        anchor.href = url;
-        anchor.download = filename;
-        document.body.appendChild(anchor);
-        anchor.click();
-        anchor.remove();
-        window.setTimeout(() => URL.revokeObjectURL(url), 0);
-        dom.saveStatus.textContent = `已下载 ${filename}`;
-      }
-
-      function showDrop() {
-        dom.dropOverlay.classList.add('is-visible');
-      }
-
-      function hideDrop() {
-        dragDepth = 0;
-        dom.dropOverlay.classList.remove('is-visible');
-      }
-
-      function bind() {
-        dom.openBtn.addEventListener('click', openPicker);
-        dom.downloadBtn.addEventListener('click', download);
-        dom.fileInput.addEventListener('change', () => {
-          const [file] = dom.fileInput.files || [];
-          if (file) loadFile(file);
-        });
-
-        window.addEventListener('dragenter', (event) => {
-          if (!event.dataTransfer?.types?.includes('Files')) return;
-          event.preventDefault();
-          dragDepth += 1;
-          showDrop();
-        });
-
-        window.addEventListener('dragover', (event) => {
-          if (!event.dataTransfer?.types?.includes('Files')) return;
-          event.preventDefault();
-          if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
-        });
-
-        window.addEventListener('dragleave', (event) => {
-          if (!event.dataTransfer?.types?.includes('Files')) return;
-          dragDepth = Math.max(0, dragDepth - 1);
-          if (dragDepth === 0) hideDrop();
-        });
-
-        window.addEventListener('drop', (event) => {
-          event.preventDefault();
-          hideDrop();
-          const [file] = event.dataTransfer?.files || [];
-          if (file) loadFile(file);
-        });
-      }
-
-      return { bind, download, loadFile };
-    })();
-
-    /* ============================================================
-       11. App Init
-    ============================================================ */
-    const App = (() => {
-      function restoreState() {
-        const saved = Storage.load();
-        const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-
-        Theme.apply(saved?.theme || (prefersDark ? 'dark' : 'light'));
-        Editor.setFilename(typeof saved?.filename === 'string' ? saved.filename : DEFAULT_FILENAME);
-        Editor.setContent(
-          typeof saved?.content === 'string' ? saved.content : DEFAULT_MARKDOWN,
-          { immediate: true, resetHistory: true }
-        );
-        Layout.setMobileMode('editor');
-      }
-
-      function bindUi() {
-        dom.themeBtn.addEventListener('click', Theme.toggle);
-        dom.undoBtn.addEventListener('click', History.undo);
-        dom.redoBtn.addEventListener('click', History.redo);
-
-        dom.mobileModeButtons.forEach((button) => {
-          button.addEventListener('click', () => Layout.setMobileMode(button.dataset.mobileMode));
-        });
-
-        dom.resetBtn.addEventListener('click', () => {
-          const confirmed = window.confirm('恢复示例内容？当前自动保存的内容会被替换。');
-          if (!confirmed) return;
-          Storage.reset();
-          Editor.setFilename(DEFAULT_FILENAME);
-          Editor.setContent(DEFAULT_MARKDOWN, { immediate: true, resetHistory: true });
-          Layout.setMobileMode('editor');
-          dom.editor.focus();
-        });
-      }
-
-      function init() {
-        Editor.bind();
-        Files.bind();
-        restoreState();
-        bindUi();
-        History.updateButtons();
-      }
-
-      return { init };
-    })();
-
-    App.init();
   </script>
 </body>
 </html>

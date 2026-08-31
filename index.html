@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <meta name="theme-color" content="#f7f8fb">
-  <meta name="description" content="一个轻量、无框架、可复用的 GitHub README 在线阅读页面。">
-  <title>README 在线指南</title>
+  <meta name="description" content="一个零依赖、单文件、可复用的 README.md 在线阅读页面，适用于 GitHub Pages 与本地文档预览。">
+  <title>README 文档</title>
   <style>
     :root {
       --bg: #f6f7fb;
@@ -245,8 +245,8 @@
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3.5h8l4 4V20a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z"/><path d="M14 3.5V8h4M8 12h8M8 16h6"/></svg>
         </span>
-        <span class="brand-title" id="brandTitle">README 在线指南</span>
-        <span class="brand-subtitle">DOCUMENTATION</span>
+        <span class="brand-title" id="brandTitle">README 文档</span>
+        <span class="brand-subtitle">README VIEWER</span>
       </a>
       <div class="top-actions">
         <button class="icon-btn print-btn" id="printBtn" aria-label="打印或导出 PDF" title="打印或导出 PDF">
@@ -280,7 +280,7 @@
       <article class="reader">
         <div class="doc-meta">
           <span class="status-dot" aria-hidden="true"></span>
-          <span>README.md</span>
+          <span id="sourceName">README.md</span>
           <span class="spacer"></span>
           <span class="updated" id="readTime">正在读取…</span>
           <button id="reloadBtn" title="重新载入 README.md">重新载入</button>
@@ -300,18 +300,25 @@
     (() => {
       'use strict';
 
-      /* 修改这里即可复用到其他 Markdown 文件。 */
-      const CONFIG = {
-        markdownFile: 'README.md',
-        fallbackTitle: 'README 在线指南',
+      /*
+       * 通用 README 阅读器
+       * ------------------------------------------------------------
+       * 默认无需修改任何配置：
+       * 1. 将本 index.html 与 README.md 放在同一目录；
+       * 2. 通过 GitHub Pages 或本地 HTTP Server 访问；
+       * 3. 页面标题、顶部名称、目录、阅读时间均从 README 自动生成。
+       */
+      const CONFIG = Object.freeze({
+        markdownFiles: ['README.md', 'readme.md', 'Readme.md'],
+        fallbackTitle: 'README 文档',
         rememberTheme: true
-      };
+      });
 
       const $ = (selector, root = document) => root.querySelector(selector);
       const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
       const els = {
         markdown: $('#markdown'), toc: $('#toc'), tocCount: $('#tocCount'),
-        brandTitle: $('#brandTitle'), readTime: $('#readTime'), search: $('#searchInput'),
+        brandTitle: $('#brandTitle'), sourceName: $('#sourceName'), readTime: $('#readTime'), search: $('#searchInput'),
         searchMeta: $('#searchMeta'), clear: $('#searchClear'), theme: $('#themeBtn'),
         themeIcon: $('#themeIcon'), menu: $('#menuBtn'), sidebar: $('#sidebar'), overlay: $('#overlay'),
         progress: $('#progressBar'), backTop: $('#backTop'), reload: $('#reloadBtn'), print: $('#printBtn')
@@ -326,6 +333,21 @@
         .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
 
       const escapeAttr = value => escapeHtml(value).replace(/`/g, '&#096;');
+
+      function isSafeUrl(value, forImage = false) {
+        const url = String(value || '').trim().replace(/&amp;/g, '&');
+        if (!url) return false;
+
+        // 常见安全协议。
+        if (/^(https?:|mailto:|tel:)/i.test(url)) return true;
+
+        // 页面锚点、绝对/相对路径以及普通同站文件路径。
+        if (/^(#|\/|\.\/|\.\.\/)/.test(url)) return true;
+        if (!/^[a-z][a-z0-9+.-]*:/i.test(url) && !/^\/\//.test(url)) return true;
+
+        // 图片仅额外允许常见 base64 图片。
+        return forImage && /^data:image\/(png|gif|jpe?g|webp);base64,/i.test(url);
+      }
 
       function slugify(text, used) {
         let base = text.toLowerCase().replace(/<[^>]*>/g, '').replace(/&[a-z#0-9]+;/gi, '')
@@ -342,9 +364,13 @@
         const inlineCode = [];
         value = value.replace(/`([^`]+)`/g, (_, code) => `\u0000I${inlineCode.push(code) - 1}\u0000`);
         value = value.replace(/!\[([^\]]*)\]\((https?:\/\/[^\s)]+|[^\s)]+)(?:\s+&quot;([^&]*)&quot;)?\)/g,
-          (_, alt, url, title) => `<img src="${escapeAttr(url)}" alt="${alt}" loading="lazy"${title ? ` title="${title}"` : ''}>`);
+          (_, alt, url, title) => isSafeUrl(url, true)
+            ? `<img src="${escapeAttr(url)}" alt="${alt}" loading="lazy"${title ? ` title="${title}"` : ''}>`
+            : alt);
         value = value.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+|[^\s)]+)(?:\s+&quot;([^&]*)&quot;)?\)/g,
-          (_, label, url, title) => `<a href="${escapeAttr(url)}"${/^https?:/.test(url) ? ' target="_blank" rel="noopener noreferrer"' : ''}${title ? ` title="${title}"` : ''}>${label}</a>`);
+          (_, label, url, title) => isSafeUrl(url, false)
+            ? `<a href="${escapeAttr(url)}"${/^https?:/i.test(url) ? ' target="_blank" rel="noopener noreferrer"' : ''}${title ? ` title="${title}"` : ''}>${label}</a>`
+            : label);
         value = value.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/__([^_]+)__/g, '<strong>$1</strong>');
         value = value.replace(/~~([^~]+)~~/g, '<del>$1</del>');
         value = value.replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>').replace(/(^|[^_])_([^_\n]+)_/g, '$1<em>$2</em>');
@@ -459,28 +485,93 @@
         headings.forEach(h => headingObserver.observe(h));
       }
 
+      function getPathFallbackTitle() {
+        const parts = decodeURIComponent(location.pathname)
+          .split('/')
+          .filter(Boolean);
+        const last = parts.at(-1);
+        if (!last || /\.html?$/i.test(last)) return CONFIG.fallbackTitle;
+        return last;
+      }
+
       function updateTitle() {
         const h1 = $('h1', els.markdown);
-        const title = h1 ? h1.textContent.trim() : CONFIG.fallbackTitle;
+        const title = h1 ? h1.textContent.trim() : getPathFallbackTitle();
         document.title = title;
         els.brandTitle.textContent = title;
-        const words = rawMarkdown.replace(/```[\s\S]*?```/g, '').replace(/[#>*_`|\-]/g, ' ').trim().length;
-        els.readTime.textContent = `约 ${Math.max(1, Math.ceil(words / 450))} 分钟阅读`;
+
+        const firstParagraph = $('p', els.markdown);
+        const description = firstParagraph
+          ? firstParagraph.textContent.replace(/\s+/g, ' ').trim().slice(0, 155)
+          : '';
+        if (description) {
+          $('meta[name="description"]').setAttribute('content', description);
+        }
+
+        const chars = rawMarkdown
+          .replace(/```[\s\S]*?```/g, '')
+          .replace(/[#>*_`|\-]/g, ' ')
+          .trim()
+          .length;
+        els.readTime.textContent = `约 ${Math.max(1, Math.ceil(chars / 450))} 分钟阅读`;
+      }
+
+      async function fetchMarkdownFile() {
+        let lastError = null;
+
+        for (const filename of CONFIG.markdownFiles) {
+          try {
+            const response = await fetch(`${filename}?v=${Date.now()}`, { cache: 'no-store' });
+            if (!response.ok) {
+              lastError = new Error(`${filename}: HTTP ${response.status}`);
+              continue;
+            }
+
+            const content = await response.text();
+            if (!content.trim()) {
+              lastError = new Error(`${filename}: 内容为空`);
+              continue;
+            }
+
+            return { filename, content };
+          } catch (error) {
+            lastError = error;
+          }
+        }
+
+        throw lastError || new Error('未找到 README.md');
       }
 
       async function loadMarkdown() {
         els.markdown.innerHTML = '<div class="loading"><div><div class="spinner"></div><div>正在加载 README.md</div></div></div>';
-        els.toc.innerHTML = ''; els.tocCount.textContent = '—';
+        els.toc.innerHTML = '';
+        els.tocCount.textContent = '—';
+        els.sourceName.textContent = 'README.md';
+
         try {
-          const response = await fetch(`${CONFIG.markdownFile}?v=${Date.now()}`, { cache: 'no-store' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          rawMarkdown = await response.text();
-          if (!rawMarkdown.trim()) throw new Error('README.md 内容为空');
+          const result = await fetchMarkdownFile();
+          rawMarkdown = result.content;
+          els.sourceName.textContent = result.filename;
+
           els.markdown.innerHTML = renderMarkdown(rawMarkdown);
-          enhanceDocument(); buildToc(); updateTitle();
+          enhanceDocument();
+          buildToc();
+          updateTitle();
+
+          els.search.value = '';
           els.searchMeta.textContent = '输入关键词搜索正文';
+          els.clear.style.display = 'none';
         } catch (error) {
-          els.markdown.innerHTML = `<div class="error"><h2>无法载入 README.md</h2><p>请确认 <code>index.html</code> 与 <code>${escapeHtml(CONFIG.markdownFile)}</code> 位于同一目录，并通过 GitHub Pages 或本地 Web 服务器访问。</p><p><strong>本地预览：</strong></p><div class="code-block"><pre><code>python3 -m http.server 8080</code></pre></div><p>然后打开 <code>http://localhost:8080</code>。</p><p><small>${escapeHtml(error.message)}</small></p></div>`;
+          els.markdown.innerHTML = `<div class="error">
+            <h2>无法载入 README.md</h2>
+            <p>请将 <code>index.html</code> 与 <code>README.md</code> 放在同一目录，并通过 GitHub Pages 或本地 HTTP Server 访问。</p>
+            <p><strong>Windows 本地预览：</strong></p>
+            <div class="code-block"><pre><code>python -m http.server 8080</code></pre></div>
+            <p>如果系统使用 Python Launcher，也可以运行：</p>
+            <div class="code-block"><pre><code>py -m http.server 8080</code></pre></div>
+            <p>然后访问 <code>http://localhost:8080</code>。</p>
+            <p><small>${escapeHtml(error.message)}</small></p>
+          </div>`;
           els.readTime.textContent = '载入失败';
         }
       }
